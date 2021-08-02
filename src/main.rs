@@ -1,10 +1,10 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
+use actix_web::http::header;
 use actix_web::http::header::LOCATION;
 use actix_web::middleware::Logger;
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
-use serde::{Serialize, Deserialize};
-use actix_web::http::header;
-use actix_cors::Cors;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Url {
@@ -23,10 +23,9 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[post("/clip")]
 async fn clip(req_body: web::Json<Url>) -> impl Responder {
-    HttpResponse::Ok()
-        .json(Url {
-            address: req_body.address.to_string(),
-        })
+    HttpResponse::Ok().json(Url {
+        address: req_body.address.to_string(),
+    })
 }
 
 #[get("/redirect/{url}")]
@@ -50,7 +49,7 @@ async fn main() -> std::io::Result<()> {
             .service(clip)
             .service(redirect)
     })
-        .bind("127.0.0.1:8090")?
-        .run()
-        .await
+    .bind("127.0.0.1:8090")?
+    .run()
+    .await
 }
