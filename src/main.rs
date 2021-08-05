@@ -1,7 +1,14 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
 use actix_web::http::header::LOCATION;
 use actix_web::middleware::Logger;
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct Url {
+    address: String,
+}
 
 #[get("/")]
 async fn hello() -> impl Responder {
@@ -11,6 +18,13 @@ async fn hello() -> impl Responder {
 #[post("/echo")]
 async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
+}
+
+#[post("/clip")]
+async fn clip(req_body: web::Json<Url>) -> impl Responder {
+    HttpResponse::Ok().json(Url {
+        address: req_body.address.to_string(),
+    })
 }
 
 #[get("/redirect/{url}")]
@@ -28,11 +42,13 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .wrap(Logger::default())
+            .wrap(Cors::permissive())
             .service(hello)
             .service(echo)
+            .service(clip)
             .service(redirect)
     })
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    .bind("127.0.0.1:8090")?
+    .run()
+    .await
 }
