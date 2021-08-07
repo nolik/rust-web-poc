@@ -1545,10 +1545,12 @@ dependencies = [
 name = "rust-web-poc"
 version = "0.1.0"
 dependencies = [
+ "actix",
  "actix-cors",
  "actix-redis",
  "actix-web",
  "env_logger",
+ "redis-async",
  "serde",
 ]
 

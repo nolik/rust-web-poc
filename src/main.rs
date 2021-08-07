@@ -1,8 +1,12 @@
+use actix::prelude::*;
 use actix_cors::Cors;
+use actix_redis::{Command, RedisActor, RespValue};
 use actix_web::http::header::LOCATION;
 use actix_web::middleware::Logger;
+use actix_web::web::{Data, Json};
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
+use redis_async::resp_array;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -21,7 +25,14 @@ async fn echo(req_body: String) -> impl Responder {
 }
 
 #[post("/clip")]
-async fn clip(req_body: web::Json<Url>) -> impl Responder {
+async fn clip(req_body: Json<Url>, redis: Data<Addr<RedisActor>>) -> impl Responder {
+    let redis_command = resp_array!["SET", "key_name", "123"];
+    let redis_result = redis.send(Command(redis_command)).await;
+    if let Ok(Ok(RespValue::SimpleString(x))) = redis_result {
+        println!("{}", x);
+    } else {
+        println!("Error");
+    }
     HttpResponse::Ok().json(Url {
         address: req_body.address.to_string(),
     })
@@ -40,9 +51,9 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(|| {
         App::new()
-            // enable logger
             .wrap(Logger::default())
             .wrap(Cors::permissive())
+            .data(RedisActor::start("127.0.0.1:6379"))
             .service(hello)
             .service(echo)
             .service(clip)
