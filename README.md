@@ -1,3 +1,7 @@
 This is part of Rust-web poc project.
 
-IDEA: URL shortener that use Redis as a storage.
+URL shortener that use Redis as a storage.
+
+For local development:
+
+To run redis: docker run -p 6379:6379 --name redis -d redis
