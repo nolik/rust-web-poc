@@ -8,6 +8,9 @@ use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use env_logger::Env;
 use redis_async::resp_array;
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use redis_async::resp::ToRespString;
 
 #[derive(Serialize, Deserialize)]
 pub struct Url {
@@ -26,23 +29,43 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[post("/clip")]
 async fn clip(req_body: Json<Url>, redis: Data<Addr<RedisActor>>) -> impl Responder {
-    let redis_command = resp_array!["SET", "key_name", "123"];
+    let hash = calculate_hash(&req_body.address);
+    let redis_command = resp_array!["SET", &hash, &req_body.address];
     let redis_result = redis.send(Command(redis_command)).await;
-    if let Ok(Ok(RespValue::SimpleString(x))) = redis_result {
-        println!("{}", x);
+
+    if redis_result.is_ok() {
+        HttpResponse::Ok().json(Url { address: hash })
     } else {
-        println!("Error");
+        HttpResponse::InternalServerError().finish()
     }
-    HttpResponse::Ok().json(Url {
-        address: req_body.address.to_string(),
-    })
+}
+
+fn calculate_hash<T: Hash>(t: &T) -> String {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish().to_string()
 }
 
 #[get("/redirect/{url}")]
-async fn redirect(web::Path(url): web::Path<String>) -> impl Responder {
-    HttpResponse::PermanentRedirect()
-        .header(LOCATION, "http://".to_owned() + &url)
-        .finish()
+async fn redirect(
+    web::Path(url): web::Path<String>,
+    redis: Data<Addr<RedisActor>>,
+) -> impl Responder {
+    println!("URL: {}", url);
+    let redis_command = resp_array!["GET", url];
+    let redis_result = redis.send(Command(redis_command)).await;
+
+    if let Ok(Ok(RespValue::BulkString(x))) = redis_result {
+        println!("parsed succes ");
+        // RespValue::SimpleString(full_url)
+        // println!("Redis URL: {}", x..url);
+
+        HttpResponse::PermanentRedirect()
+            .header(LOCATION, "https://google.com/")
+            .finish()
+    } else {
+        HttpResponse::InternalServerError().finish()
+    }
 }
 
 #[actix_web::main]
