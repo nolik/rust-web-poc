@@ -10,16 +10,10 @@ use redis_async::resp_array;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use redis_async::resp::ToRespString;
 
 #[derive(Serialize, Deserialize)]
 pub struct Url {
     address: String,
-}
-
-#[get("/")]
-async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello there!")
 }
 
 #[post("/echo")]
@@ -46,22 +40,17 @@ fn calculate_hash<T: Hash>(t: &T) -> String {
     s.finish().to_string()
 }
 
-#[get("/redirect/{url}")]
+#[get("/{address_key}")]
 async fn redirect(
-    web::Path(url): web::Path<String>,
+    web::Path(address_key): web::Path<String>,
     redis: Data<Addr<RedisActor>>,
 ) -> impl Responder {
-    println!("URL: {}", url);
-    let redis_command = resp_array!["GET", url];
+    let redis_command = resp_array!["GET", address_key];
     let redis_result = redis.send(Command(redis_command)).await;
 
-    if let Ok(Ok(RespValue::BulkString(x))) = redis_result {
-        println!("parsed succes ");
-        // RespValue::SimpleString(full_url)
-        // println!("Redis URL: {}", x..url);
-
+    if let Ok(Ok(RespValue::BulkString(full_address))) = redis_result {
         HttpResponse::PermanentRedirect()
-            .header(LOCATION, "https://google.com/")
+            .header(LOCATION, full_address)
             .finish()
     } else {
         HttpResponse::InternalServerError().finish()
@@ -77,7 +66,6 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .wrap(Cors::permissive())
             .data(RedisActor::start("127.0.0.1:6379"))
-            .service(hello)
             .service(echo)
             .service(clip)
             .service(redirect)
