@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize)]
 pub struct Url {
-    address: String,
+    address: String
 }
 
 #[post("/echo")]
@@ -23,12 +23,12 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[post("/clip")]
 async fn clip(req_body: Json<Url>, redis: Data<Addr<RedisActor>>) -> impl Responder {
-    let hash = calculate_hash(&req_body.address);
-    let redis_command = resp_array!["SET", &hash, &req_body.address];
+    let hash_slice = &calculate_hash(&req_body.address)[0..7];
+    let redis_command = resp_array!["SET", hash_slice, &req_body.address];
     let redis_result = redis.send(Command(redis_command)).await;
 
     if redis_result.is_ok() {
-        HttpResponse::Ok().json(Url { address: hash })
+        HttpResponse::Ok().json(Url { address: hash_slice.to_string() })
     } else {
         HttpResponse::InternalServerError().finish()
     }
