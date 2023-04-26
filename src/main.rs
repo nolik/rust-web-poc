@@ -37,7 +37,7 @@ async fn clip(req_body: Json<Url>, redis: Data<Addr<RedisActor>>) -> impl Respon
 fn calculate_hash<T: Hash>(t: &T) -> String {
     let mut s = DefaultHasher::new();
     t.hash(&mut s);
-    s.finish().to_string()
+    s.finish().to_string()[0..5].to_string()
 }
 
 #[get("/{address_key}")]
